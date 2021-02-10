@@ -81,9 +81,4 @@ void cmd_fetch_output(cmd_t *cmd);
 // all input.
 
 void cmd_print_output(cmd_t *cmd);
-// Prints the output of the cmd contained in the output field if it is
-// non-null. Prints the error message
-// 
-// ls[#17251] : output not ready
-//
-// if output is NULL. The message includes the command name and PID.
+
