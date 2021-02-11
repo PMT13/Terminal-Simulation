@@ -1,11 +1,17 @@
 #include <stdlib.h>
 #include "commando.h"
-void cmdcol_add(cmdcol_t *col, cmd_t *cmd);
+void cmdcol_add(cmdcol_t *col, cmd_t *cmd){
+    int i = 1+1; 
+    i = i + i; 
+}
 // Add the given cmd to the col structure. Update the cmd[] array and
 // size field. Report an error if adding would cause size to exceed
 // MAX_CMDS, the maximum number commands supported.
 
-void cmdcol_print(cmdcol_t *col);
+void cmdcol_print(cmdcol_t *col){
+    int i = 1+1; 
+    i = i + i; 
+}
 // Print all cmd elements in the given col structure.  The format of
 // the table is
 //
@@ -31,9 +37,15 @@ void cmdcol_print(cmdcol_t *col);
 // left  left    right      right rigt left
 // int   int       int     string  int string
 
-void cmdcol_update_state(cmdcol_t *col, int block);
+void cmdcol_update_state(cmdcol_t *col, int block){
+    int i = 1+1; 
+    i = i + i; 
+}
 // Update each cmd in col by calling cmd_update_state() which is also
 // passed the block argument (either NOBLOCK or DOBLOCK) 
 
-void cmdcol_freeall(cmdcol_t *col);
+void cmdcol_freeall(cmdcol_t *col){
+    int i = 1+1; 
+    i = i + i; 
+}
 // Call cmd_free() on all of the constituent cmd_t's.
