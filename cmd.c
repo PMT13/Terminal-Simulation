@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "commando.h"
+#include <unistd.h>
 
 cmd_t *cmd_new(char *argv[]){ 
     cmd_t *new = malloc(sizeof(cmd_t));
@@ -54,8 +55,22 @@ void cmd_free(cmd_t *cmd){
 // NULL. Finally, deallocates cmd itself.
 
 void cmd_start(cmd_t *cmd){
-    snprintf(cmd->str_status,STATUS_LEN,"RUN");
-    //create a pipe here 
+    if(pipe(cmd->out_pipe) < 0){
+        printf("pipe error"); 
+    }
+    pid_t child = fork();
+    if(child < 0){
+        printf("fork error");
+    }
+    if(child == 0){                                 // child process goes through here 
+        close(cmd->out_pipe[PREAD]);                // child not using the "read" pipe so we close it 
+        dup2(cmd->out_pipe[PWRITE],STDOUT_FILENO); 
+        execvp(cmd->name,cmd->argv); 
+    }else{                                          // parent process goes through here 
+        cmd->pid = child;  
+        close(cmd->out_pipe[PWRITE]); 
+        snprintf(cmd->str_status,STATUS_LEN,"RUN");
+    }
 }
 // Forks a process and executes command in cmd in the process.
 // Changes the str_status field to "RUN" using snprintf().  Creates a
@@ -67,8 +82,20 @@ void cmd_start(cmd_t *cmd){
 // the child).
 
 void cmd_update_state(cmd_t *cmd, int block){
-    int i = 1+1; 
-    i = i + i; 
+    int status; 
+    if(cmd->finished != 0){
+        while(1){
+            waitpid(cmd->pid,&status,block);          // waits for given process 
+            if( WIFEXITED(status)){                   // if process has terminated  
+                cmd->finished = 1;
+                cmd->status = WEXITSTATUS(status);    // set status field to status of the cmd 
+                snprintf(cmd->str_status,STATUS_LEN,"EXIT(%d)",cmd->status); 
+                printf("@!!! %s[%d]: %s\n",cmd->name,cmd->status,cmd->str_status);
+                break;                                // break out of the looop since process has finished
+            } 
+        }
+        cmd_fetch_output(cmd);
+    } 
 }
 // If the finished flag is 1, does nothing. Otherwise, updates the
 // state of cmd.  Uses waitpid() and the pid field of command to wait
