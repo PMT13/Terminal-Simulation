@@ -82,8 +82,8 @@ void cmd_start(cmd_t *cmd){
 // the child).
 
 void cmd_update_state(cmd_t *cmd, int block){
-    int status; 
     if(cmd->finished != 0){
+        int status; 
         while(1){
             waitpid(cmd->pid,&status,block);          // waits for given process 
             if( WIFEXITED(status)){                   // if process has terminated  
@@ -115,6 +115,22 @@ void cmd_update_state(cmd_t *cmd, int block){
 // which includes the command name, PID, and exit status.
 
 char *read_all(int fd, int *nread){
+    char buffer[BUFSIZE + 1];               // buffer to hold output 
+    int maxSize = BUFSIZE;                  // integer used to double size of buffer if needed 
+    int curPos = 0; 
+    while(1){    
+        int endOfFile = read(fd,buffer,BUFSIZE)       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
+        curPos += BUFSIZE;
+        if(endOfFile == 0){                           // means no more data to be read in (0 for EOF)
+            *nread = curPos; 
+            buffer[maxSize] = '\0'; 
+            return buffer; 
+        } 
+        if(curPos == maxSize){                        // if our current position in the buffer is equal to the length of the buffer
+            maxSize *= 2;                            
+            char *newBuf = realloc(buffer,maxSize + 1);   // double size of buffer 
+        }
+    }
     return NULL;
 }
 // Reads all input from the open file descriptor fd. Assumes
