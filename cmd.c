@@ -115,23 +115,24 @@ void cmd_update_state(cmd_t *cmd, int block){
 // which includes the command name, PID, and exit status.
 
 char *read_all(int fd, int *nread){
-    char buffer[BUFSIZE + 1];               // buffer to hold output 
-    int maxSize = BUFSIZE;                  // integer used to double size of buffer if needed 
+    char *buffer = malloc(BUFSIZE + 1);               // buffer to hold output 
+    int maxSize = BUFSIZE;                            // integer used to double size of buffer if needed 
     int curPos = 0; 
     while(1){    
-        int endOfFile = read(fd,buffer,BUFSIZE)       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
+        int endOfFile = read(fd,buffer,BUFSIZE);       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
         curPos += BUFSIZE;
         if(endOfFile == 0){                           // means no more data to be read in (0 for EOF)
-            *nread = curPos; 
+            *nread = curPos;                          // number of bytes read 
             buffer[maxSize] = '\0'; 
-            return buffer; 
+            break; 
         } 
         if(curPos == maxSize){                        // if our current position in the buffer is equal to the length of the buffer
             maxSize *= 2;                            
-            char *newBuf = realloc(buffer,maxSize + 1);   // double size of buffer 
+            char *newBuf = realloc(buffer,maxSize + 1);   // double size of buffer (plus 1 for \0 character)
+            buffer = newBuf; 
         }
     }
-    return NULL;
+    return buffer;
 }
 // Reads all input from the open file descriptor fd. Assumes
 // character/text output and null-terminates the character output with
@@ -146,8 +147,12 @@ char *read_all(int fd, int *nread){
 // is done elsewhere.
 
 void cmd_fetch_output(cmd_t *cmd){
-    int i = 0; 
-    i = i + i;
+    if(cmd->finished == 0){
+        printf("%s[#%d]: not finished yet\n",cmd->name,cmd->status);
+    }else{
+        cmd->output = read_all(cmd->out_pipe[0],&cmd->output_size);
+        close(cmd->out_pipe[0]); 
+    }
 }
 // If cmd->finished is zero, prints an error message with the format
 // 
@@ -160,8 +165,11 @@ void cmd_fetch_output(cmd_t *cmd){
 // all input.
 
 void cmd_print_output(cmd_t *cmd){
-    int i = 0; 
-    i = i + i;
+    if(cmd->output == NULL){
+        printf("%s[#%d]: output not ready\n",cmd->name,cmd->status);
+    }else{
+        write(STDERR_FILENO,cmd->output,cmd->output_size);
+    }
 }
 // Prints the output of the cmd contained in the output field if it is
 // non-null. Prints the error message
