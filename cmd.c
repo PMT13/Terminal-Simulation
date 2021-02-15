@@ -82,7 +82,7 @@ void cmd_start(cmd_t *cmd){
 // the child).
 
 void cmd_update_state(cmd_t *cmd, int block){
-    if(cmd->finished != 0){
+    if(cmd->finished != 1){
         int status; 
         while(1){
             waitpid(cmd->pid,&status,block);          // waits for given process 
@@ -90,7 +90,7 @@ void cmd_update_state(cmd_t *cmd, int block){
                 cmd->finished = 1;
                 cmd->status = WEXITSTATUS(status);    // set status field to status of the cmd 
                 snprintf(cmd->str_status,STATUS_LEN,"EXIT(%d)",cmd->status); 
-                printf("@!!! %s[%d]: %s\n",cmd->name,cmd->status,cmd->str_status);
+                printf("@!!! %s[%c0]: %s\n",cmd->name,37,cmd->str_status);  // 37  = % symbol in ascii
                 break;                                // break out of the looop since process has finished
             } 
         }
@@ -116,19 +116,25 @@ void cmd_update_state(cmd_t *cmd, int block){
 
 char *read_all(int fd, int *nread){
     char *buffer = malloc(BUFSIZE + 1);               // buffer to hold output 
+    for(int i = 0; i < BUFSIZE + 1; i++){
+        buffer[i] = '\0'; 
+    }
     int maxSize = BUFSIZE;                            // integer used to double size of buffer if needed 
     int curPos = 0; 
     while(1){    
-        int endOfFile = read(fd,buffer,BUFSIZE);       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
-        curPos += BUFSIZE;
+        int endOfFile = read(fd,&buffer[curPos],1);       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
+        curPos++;
         if(endOfFile == 0){                           // means no more data to be read in (0 for EOF)
-            *nread = curPos;                          // number of bytes read 
+            *nread = curPos - 1;                          // number of bytes read 
             buffer[maxSize] = '\0'; 
             break; 
         } 
-        if(curPos == maxSize){                        // if our current position in the buffer is equal to the length of the buffer
+        if(curPos == maxSize){                            // if our current position in the buffer is equal to the length of the buffer
             maxSize *= 2;                            
             char *newBuf = realloc(buffer,maxSize + 1);   // double size of buffer (plus 1 for \0 character)
+            for(int j = curPos; j < maxSize;j++){         // initialize the new realloocated array 
+                newBuf[j] = '\0'; 
+            }
             buffer = newBuf; 
         }
     }
