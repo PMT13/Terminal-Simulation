@@ -90,7 +90,7 @@ void cmd_update_state(cmd_t *cmd, int block){
                 cmd->finished = 1;
                 cmd->status = WEXITSTATUS(status);    // set status field to status of the cmd 
                 snprintf(cmd->str_status,STATUS_LEN,"EXIT(%d)",cmd->status); 
-                printf("@!!! %s[%c0]: %s\n",cmd->name,37,cmd->str_status);  // 37  = % symbol in ascii
+                printf("@!!! %s[#%d]: %s\n",cmd->name,cmd->pid,cmd->str_status);  
                 break;                                // break out of the looop since process has finished
             } 
         }
