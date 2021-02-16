@@ -1,16 +1,29 @@
 #include <stdlib.h>
 #include "commando.h"
-void cmdcol_add(cmdcol_t *col, cmd_t *cmd){
-    int i = 1+1; 
-    i = i + i; 
+void cmdcol_add(cmdcol_t *col, cmd_t *cmd){ 
+    if(col->size >= MAX_CMDS){
+        perror("Too many cmds!\n"); 
+    }else{
+        col->cmd[col->size] = cmd; 
+        col->size++;
+    }
 }
 // Add the given cmd to the col structure. Update the cmd[] array and
 // size field. Report an error if adding would cause size to exceed
 // MAX_CMDS, the maximum number commands supported.
 
 void cmdcol_print(cmdcol_t *col){
-    int i = 1+1; 
-    i = i + i; 
+    printf("JOB  #PID      STAT   STR_STAT OUTB COMMAND\n");
+    for(int i = 0; i < col->size;i++){
+        int x = 0; 
+        printf("%d    #%2d %10d %10s %4d ",i,col->cmd[i]->pid,col->cmd[i]->status,
+            col->cmd[i]->str_status,col->cmd[i]->output_size);
+        while(col->cmd[i]->argv[x]!= NULL){
+            printf("%s ",col->cmd[i]->argv[x]);
+            x++;
+        }
+        printf("\n"); 
+    }
 }
 // Print all cmd elements in the given col structure.  The format of
 // the table is
@@ -38,14 +51,16 @@ void cmdcol_print(cmdcol_t *col){
 // int   int       int     string  int string
 
 void cmdcol_update_state(cmdcol_t *col, int block){
-    int i = 1+1; 
-    i = i + i; 
+    for(int i =0;i < col->size;i++){
+        cmd_update_state(col->cmd[i],block); 
+    } 
 }
 // Update each cmd in col by calling cmd_update_state() which is also
 // passed the block argument (either NOBLOCK or DOBLOCK) 
 
 void cmdcol_freeall(cmdcol_t *col){
-    int i = 1+1; 
-    i = i + i; 
+    for(int i =0;i < col->size;i++){
+        cmd_free(col->cmd[i]); 
+    }
 }
 // Call cmd_free() on all of the constituent cmd_t's.
