@@ -21,7 +21,7 @@ cmd_t *cmd_new(char *argv[]){
         new->name[x] = argv[0][x]; 
         x++; 
     }                   
-    snprintf(new->str_status,STATUS_LEN,"INIT");    
+    snprintf(new->str_status,STATUS_LEN,"INIT");    // initialize fields
     new->finished = 0; 
     new->pid = -1; 
     new->status = -1; 
@@ -41,11 +41,11 @@ cmd_t *cmd_new(char *argv[]){
 
 void cmd_free(cmd_t *cmd){
     int i = 0; 
-    while(cmd->argv[i] != NULL){
+    while(cmd->argv[i] != NULL){                    // free all strings in argv[]
         free(cmd->argv[i]);
         i++;
     }
-    if(cmd->output != NULL){
+    if(cmd->output != NULL){                        // free output buffer
         free(cmd->output);
     }
     free(cmd); 
@@ -55,12 +55,13 @@ void cmd_free(cmd_t *cmd){
 // NULL. Finally, deallocates cmd itself.
 
 void cmd_start(cmd_t *cmd){
-    if(pipe(cmd->out_pipe) < 0){
-        printf("pipe error"); 
+    if(pipe(cmd->out_pipe) < 0){                    // if creation of pipe fails
+        perror("pipe error"); 
     }
-    pid_t child = fork();
+    snprintf(cmd->str_status,STATUS_LEN,"RUN");
+    pid_t child = fork();                           // if creation of child fails 
     if(child < 0){
-        printf("fork error");
+        perror("fork error");
     }
     if(child == 0){                                 // child process goes through here 
         close(cmd->out_pipe[PREAD]);                // child not using the "read" pipe so we close it 
@@ -69,7 +70,6 @@ void cmd_start(cmd_t *cmd){
     }else{                                          // parent process goes through here 
         cmd->pid = child;  
         close(cmd->out_pipe[PWRITE]); 
-        snprintf(cmd->str_status,STATUS_LEN,"RUN");
     }
 }
 // Forks a process and executes command in cmd in the process.
@@ -82,19 +82,21 @@ void cmd_start(cmd_t *cmd){
 // the child).
 
 void cmd_update_state(cmd_t *cmd, int block){
-    if(cmd->finished != 1){
+    if(cmd->finished != 1){                                 // if process is not finished 
         int status; 
-        while(1){
-            waitpid(cmd->pid,&status,block);          // waits for given process 
-            if( WIFEXITED(status)){                   // if process has terminated  
+        int ret = waitpid(cmd->pid,&status,block);          // waits for given process or "checks on it" depending on block  
+        if(ret == -1){
+            perror("waitpid() failed\n");
+            exit(1); 
+        }else if(ret == cmd->pid){
+            if( WIFEXITED(status)){                         // if process has terminated  
                 cmd->finished = 1;
-                cmd->status = WEXITSTATUS(status);    // set status field to status of the cmd 
+                cmd->status = WEXITSTATUS(status);          // set status field to status of the cmd 
                 snprintf(cmd->str_status,STATUS_LEN,"EXIT(%d)",cmd->status); 
                 printf("@!!! %s[#%d]: %s\n",cmd->name,cmd->pid,cmd->str_status);  
-                break;                                // break out of the looop since process has finished
+                cmd_fetch_output(cmd);
             } 
         }
-        cmd_fetch_output(cmd);
     } 
 }
 // If the finished flag is 1, does nothing. Otherwise, updates the
@@ -115,24 +117,33 @@ void cmd_update_state(cmd_t *cmd, int block){
 // which includes the command name, PID, and exit status.
 
 char *read_all(int fd, int *nread){
-    char *buffer = malloc(BUFSIZE + 1);               // buffer to hold output 
+    char *buffer = malloc(BUFSIZE + 1);                   // buffer to hold output 
     for(int i = 0; i < BUFSIZE + 1; i++){
         buffer[i] = '\0'; 
     }
-    int maxSize = BUFSIZE;                            // integer used to double size of buffer if needed 
+    int maxSize = BUFSIZE;                                // integer used to double size of buffer if needed 
     int curPos = 0; 
     while(1){    
         int endOfFile = read(fd,&buffer[curPos],1);       // reads in BUFSIZE bytes into buffer (0 if EOF -1 if error else number of bytes read) 
         curPos++;
-        if(endOfFile == 0){                           // means no more data to be read in (0 for EOF)
+        if(endOfFile == -1){                              // if read fails 
+            perror("read failed");
+            exit(1);
+        }
+        if(endOfFile == 0){                               // means no more data to be read in (0 for EOF)
             *nread = curPos - 1;                          // number of bytes read 
             buffer[maxSize] = '\0'; 
             break; 
         } 
-        if(curPos == maxSize){                            // if our current position in the buffer is equal to the length of the buffer
+        if(curPos == maxSize){                             // if our current position in the buffer is equal to the length of the buffer
             maxSize *= 2;                            
-            char *newBuf = realloc(buffer,maxSize + 1);   // double size of buffer (plus 1 for \0 character)
-            for(int j = curPos; j < maxSize;j++){         // initialize the new realloocated array 
+            char *newBuf = realloc(buffer,maxSize + 1);    // double size of buffer (plus 1 for \0 character)
+            if(newBuf == NULL){                            // check that re-allocation succeeded
+                printf("ERROR: reallocation failed\n");    // if not...
+                free(buffer);                                 // de-allocate current buffer
+                exit(1);                                   // bail out
+            }
+            for(int j = curPos; j < maxSize;j++){          // initialize the new realloocated array 
                 newBuf[j] = '\0'; 
             }
             buffer = newBuf; 
@@ -153,10 +164,10 @@ char *read_all(int fd, int *nread){
 // is done elsewhere.
 
 void cmd_fetch_output(cmd_t *cmd){
-    if(cmd->finished == 0){
+    if(cmd->finished == 0){                                             // if process is not finished yet 
         printf("%s[#%d]: not finished yet\n",cmd->name,cmd->status);
     }else{
-        cmd->output = read_all(cmd->out_pipe[0],&cmd->output_size);
+        cmd->output = read_all(cmd->out_pipe[0],&cmd->output_size);     // read in input from the read side of the pipe and puts into cmd->output    
         close(cmd->out_pipe[0]); 
     }
 }
@@ -172,9 +183,9 @@ void cmd_fetch_output(cmd_t *cmd){
 
 void cmd_print_output(cmd_t *cmd){
     if(cmd->output == NULL){
-        printf("%s[#%d]: output not ready\n",cmd->name,cmd->status);
+        printf("%s[#%d] : output not ready\n",cmd->name,cmd->pid);      // no output to print 
     }else{
-        write(STDERR_FILENO,cmd->output,cmd->output_size);
+        write(STDERR_FILENO,cmd->output,cmd->output_size);              // prints out output 
     }
 }
 // Prints the output of the cmd contained in the output field if it is
