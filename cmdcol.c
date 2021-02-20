@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include "commando.h"
 void cmdcol_add(cmdcol_t *col, cmd_t *cmd){ 
-    if(col->size >= MAX_CMDS){
+    if(col->size >= MAX_CMDS){                  // check to make sure not too many processes
         perror("Too many cmds!\n"); 
     }else{
-        col->cmd[col->size] = cmd; 
+        col->cmd[col->size] = cmd;              // else add cmd to the array and increment size by 1
         col->size++;
     }
 }
